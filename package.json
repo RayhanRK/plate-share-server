@@ -1,4 +1,13 @@
 {
+  "name": "plate-share-server",
+  "version": "1.0.0",
+  "description": "PlateShare backend server",
+  "main": "api/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "nodemon api/server.js"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -6,16 +15,10 @@
     "firebase-admin": "^13.6.0",
     "mongodb": "^7.0.0"
   },
-  "name": "plate-share-server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "start": "node api/server.js",
-    "dev": "nodemon api/server.js"
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "ISC"
 }
