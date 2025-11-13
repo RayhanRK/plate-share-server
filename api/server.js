@@ -9,16 +9,15 @@ const app = express();
 const PORT = process.env.PORT || 5100;
 
 // --- CORS Setup ---
-app.use(cors({
+const corsOptions = {
   origin: [
-    'http://localhost:5174', // React dev server
-    'https://plate-share-v1.vercel.app' // Replace with your deployed client URL
+    'http://localhost:5174', // your local React dev
+    'https://plate-share-client.vercel.app' // your deployed client
   ],
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
-app.use(express.json());
+};
+app.use(cors(corsOptions));
 
 // --- Firebase Admin Setup ---
 const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, 'base64').toString('utf8');
@@ -30,6 +29,9 @@ const serviceAccount = JSON.parse(decoded, (key, value) => {
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+// --- Middleware ---
+app.use(express.json());
 
 // --- Token Verification Middleware ---
 const verifyFireBaseToken = async (req, res, next) => {
