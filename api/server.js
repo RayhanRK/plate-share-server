@@ -8,10 +8,21 @@ const admin = require('firebase-admin');
 const app = express();
 const PORT = process.env.PORT || 5100;
 
+// --- CORS Setup ---
+app.use(cors({
+  origin: [
+    'http://localhost:5174', // React dev server
+    'https://plate-share-v1.vercel.app' // Replace with your deployed client URL
+  ],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json());
+
 // --- Firebase Admin Setup ---
 const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decoded, (key, value) => {
-  // Replace literal "\n" with actual newlines in private_key
   if (key === 'private_key') return value.replace(/\\n/g, '\n');
   return value;
 });
@@ -19,10 +30,6 @@ const serviceAccount = JSON.parse(decoded, (key, value) => {
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-
-// --- Middleware ---
-app.use(cors());
-app.use(express.json());
 
 // --- Token Verification Middleware ---
 const verifyFireBaseToken = async (req, res, next) => {
@@ -231,5 +238,3 @@ run().catch(console.dir);
 app.listen(PORT, () => {
   console.log(`🚀 PlateShare Server running on port ${PORT}`);
 });
-
-
