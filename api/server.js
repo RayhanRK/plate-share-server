@@ -1,19 +1,46 @@
-// server.js
+// api/server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const admin = require('firebase-admin');
 
 const app = express();
 const PORT = process.env.PORT || 5100;
 
-// Middleware
+// --- Firebase Admin Setup ---
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, 'base64').toString('utf8');
+const serviceAccount = JSON.parse(decoded, (key, value) => {
+  // Replace literal "\n" with actual newlines in private_key
+  if (key === 'private_key') return value.replace(/\\n/g, '\n');
+  return value;
+});
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+// --- Middleware ---
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection URI
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@platesharecluster.qzkdhiy.mongodb.net/${process.env.DB_NAME}?retryWrites=true&w=majority`;
+// --- Token Verification Middleware ---
+const verifyFireBaseToken = async (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) return res.status(401).send({ message: 'unauthorized' });
 
+  const token = authorization.split(' ')[1];
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.token_email = decoded.email;
+    next();
+  } catch (err) {
+    return res.status(401).send({ message: 'unauthorized' });
+  }
+};
+
+// --- MongoDB Connection ---
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@platesharecluster.qzkdhiy.mongodb.net/${process.env.DB_NAME}?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -24,36 +51,27 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect to MongoDB
-    await client.connect();
-    console.log('✅ MongoDB connected successfully!');
-
     const db = client.db(process.env.DB_NAME);
     const foodsCollection = db.collection('foods');
     const usersCollection = db.collection('users');
     const requestCollection = db.collection('food_request');
 
-    // Root route
+    // --- Root Route ---
     app.get('/', (req, res) => {
       res.send('🍽️ Plate Share Server is running successfully!');
     });
 
-    // --- User APIs ---
+    // --- Users API ---
     app.post('/api/users', async (req, res) => {
-      try {
-        const newUser = req.body;
-        const existingUser = await usersCollection.findOne({ email: newUser.email });
-        if (existingUser) return res.status(200).json({ message: 'User already exists' });
+      const newUser = req.body;
+      const existingUser = await usersCollection.findOne({ email: newUser.email });
+      if (existingUser) return res.status(200).json({ message: 'User already exists' });
 
-        const result = await usersCollection.insertOne(newUser);
-        res.status(200).json(result);
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Internal Server Error' });
-      }
+      const result = await usersCollection.insertOne(newUser);
+      res.status(200).json(result);
     });
 
-    // --- Featured Foods API ---
+    // --- Featured Foods ---
     app.get('/api/featured-foods', async (req, res) => {
       try {
         const featuredFoods = await foodsCollection
@@ -68,8 +86,8 @@ async function run() {
       }
     });
 
-    // --- Food APIs ---
-    app.get('/api/foods', async (req, res) => {
+    // --- Foods API ---
+    app.get('/api/foods', verifyFireBaseToken, async (req, res) => {
       try {
         const { email } = req.query;
         const query = email ? { donator_email: email } : {};
@@ -101,7 +119,7 @@ async function run() {
       }
     });
 
-    app.post('/api/foods', async (req, res) => {
+    app.post('/api/foods', verifyFireBaseToken, async (req, res) => {
       try {
         const result = await foodsCollection.insertOne(req.body);
         res.status(200).json(result);
@@ -111,7 +129,7 @@ async function run() {
       }
     });
 
-    app.patch('/api/foods/:id', async (req, res) => {
+    app.patch('/api/foods/:id', verifyFireBaseToken, async (req, res) => {
       try {
         const { id } = req.params;
         const result = await foodsCollection.updateOne(
@@ -129,7 +147,7 @@ async function run() {
       }
     });
 
-    app.delete('/api/foods/:id', async (req, res) => {
+    app.delete('/api/foods/:id', verifyFireBaseToken, async (req, res) => {
       try {
         const result = await foodsCollection.deleteOne({ _id: new ObjectId(req.params.id) });
         res.status(200).json(result);
@@ -139,11 +157,10 @@ async function run() {
       }
     });
 
-    // --- Food Request APIs ---
-    app.get('/api/food-req/:foodId', async (req, res) => {
+    // --- Food Request API ---
+    app.get('/api/food-req/:foodId', verifyFireBaseToken, async (req, res) => {
       try {
         const requests = await requestCollection.find({ food_id: req.params.foodId }).toArray();
-        if (!requests.length) return res.status(404).json({ message: 'No requests found' });
         res.status(200).json(requests);
       } catch (err) {
         console.error(err);
@@ -151,7 +168,7 @@ async function run() {
       }
     });
 
-    app.post('/api/food-req', async (req, res) => {
+    app.post('/api/food-req', verifyFireBaseToken, async (req, res) => {
       try {
         const result = await requestCollection.insertOne(req.body);
         res.status(200).json(result);
@@ -161,14 +178,58 @@ async function run() {
       }
     });
 
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
+    app.patch('/api/food-req/:id', verifyFireBaseToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const result = await requestCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status } }
+        );
+        if (result.modifiedCount > 0) {
+          res.status(200).json({ success: true, message: `Request ${status}` });
+        } else {
+          res.status(404).json({ success: false, message: 'Request not found' });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+      }
+    });
+
+    app.delete('/api/food-req/:id', verifyFireBaseToken, async (req, res) => {
+      try {
+        const result = await requestCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+        res.status(200).json(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal Server Error' });
+      }
+    });
+
+    app.get('/api/my-requests', verifyFireBaseToken, async (req, res) => {
+      try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ message: 'Email is required' });
+
+        const result = await requestCollection.find({ requester_email: email }).toArray();
+        res.status(200).json(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal Server Error' });
+      }
+    });
+
+  } finally {
+    // MongoDB connection stays open
   }
 }
 
 run().catch(console.dir);
 
-// Start server
+// --- Start Server ---
 app.listen(PORT, () => {
   console.log(`🚀 PlateShare Server running on port ${PORT}`);
 });
+
+
