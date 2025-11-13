@@ -15,9 +15,9 @@
     "firebase-admin": "^13.6.0",
     "mongodb": "^7.0.0"
   },
-  "engines": {
-    "node": ">=20"
-  },
+  // "engines": {
+  //   "node": ">=20"
+  // },
   "keywords": [],
   "author": "",
   "license": "ISC"

@@ -8,13 +8,9 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "api/server.js"
-    },
-    {
       "src": "/(.*)",
-      "status": 404,
-      "dest": "/api/server.js"
+      "dest": "/api/server.js",
+      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     }
   ]
 }
