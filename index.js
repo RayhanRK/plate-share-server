@@ -40,9 +40,9 @@ const verifyFireBaseToken = async (req, res, next) => {
 // --- Middleware ---
 app.use(cors());
 app.use(express.json());
-
+console.log(process.env.DB_USER,process.env.DB_PASSWORD);
 // --- MongoDB Setup ---
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@plate-share.jsoauh9.mongodb.net/?appName=plate-share`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@platesharecluster.qzkdhiy.mongodb.net/?appName=PlateShareCluster`;
 
 const client = new MongoClient(uri, {
   serverApi: {
