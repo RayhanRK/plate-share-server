@@ -40,9 +40,9 @@ const verifyFireBaseToken = async (req, res, next) => {
 // --- Middleware ---
 app.use(cors());
 app.use(express.json());
-
+console.log(process.env.DB_USER,process.env.DB_PASSWORD);
 // --- MongoDB Setup ---
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@plate-share.jsoauh9.mongodb.net/?appName=plate-share`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@platesharecluster.qzkdhiy.mongodb.net/?appName=PlateShareCluster`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -192,8 +192,8 @@ async function run() {
     });
 
 // Food Requests
-app.get('/api/food-req/:foodId', verifyFireBaseToken, async (req, res) => {
-  await initDb();
+app.get('/api/food-req/:foodId', async (req, res) => {
+  // await initDb();
   try {
     const requests = await requestCollection.find({ food_id: req.params.foodId }).toArray();
     res.status(200).json(requests);
@@ -203,8 +203,8 @@ app.get('/api/food-req/:foodId', verifyFireBaseToken, async (req, res) => {
   }
 });
 
-app.post('/api/food-req', verifyFireBaseToken, async (req, res) => {
-  await initDb();
+app.post('/api/food-req', async (req, res) => {
+  // await initDb();
   try {
     const result = await requestCollection.insertOne(req.body);
     res.status(200).json(result);
@@ -214,8 +214,8 @@ app.post('/api/food-req', verifyFireBaseToken, async (req, res) => {
   }
 });
 
-app.patch('/api/food-req/:id', verifyFireBaseToken, async (req, res) => {
-  await initDb();
+app.patch('/api/food-req/:id', async (req, res) => {
+  // await initDb();
   try {
     const result = await requestCollection.updateOne(
       { _id: new ObjectId(req.params.id) },
